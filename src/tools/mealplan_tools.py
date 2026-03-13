@@ -163,6 +163,89 @@ def register_mealplan_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             raise ToolError(error_msg)
 
     @mcp.tool()
+    def get_all_mealplans_concise(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        page: Optional[int] = None,
+        per_page: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Get all meal plans with only essential fields (no full recipe objects).
+
+        Args:
+            start_date: Start date for filtering meal plans (ISO format YYYY-MM-DD)
+            end_date: End date for filtering meal plans (ISO format YYYY-MM-DD)
+            page: Page number to retrieve
+            per_page: Number of items per page
+
+        Returns:
+            Dict[str, Any]: Mealplan entries with id, date, entryType, title, recipe_name, and recipe_slug.
+        """
+        try:
+            logger.info(
+                {
+                    "message": "Fetching mealplans (concise)",
+                    "start_date": start_date,
+                    "end_date": end_date,
+                }
+            )
+            result = mealie.get_mealplans(
+                start_date=start_date,
+                end_date=end_date,
+                page=page,
+                per_page=per_page,
+            )
+            if "items" in result:
+                result["items"] = [
+                    {
+                        "id": item.get("id"),
+                        "date": item.get("date"),
+                        "entryType": item.get("entryType"),
+                        "title": item.get("title"),
+                        "recipe_name": item.get("recipe", {}).get("name") if item.get("recipe") else None,
+                        "recipe_slug": item.get("recipe", {}).get("slug") if item.get("recipe") else None,
+                    }
+                    for item in result["items"]
+                ]
+            return result
+        except Exception as e:
+            error_msg = f"Error fetching mealplans (concise): {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug(
+                {"message": "Error traceback", "traceback": traceback.format_exc()}
+            )
+            raise ToolError(error_msg)
+
+    @mcp.tool()
+    def get_todays_mealplan_concise() -> List[Dict[str, Any]]:
+        """Get today's mealplan entries with only essential fields.
+
+        Returns:
+            List[Dict[str, Any]]: Today's mealplan entries with id, date, entryType, title,
+                recipe_name, and recipe_slug.
+        """
+        try:
+            logger.info({"message": "Fetching today's mealplan (concise)"})
+            result = mealie.get_todays_mealplan()
+            return [
+                {
+                    "id": item.get("id"),
+                    "date": item.get("date"),
+                    "entryType": item.get("entryType"),
+                    "title": item.get("title"),
+                    "recipe_name": item.get("recipe", {}).get("name") if item.get("recipe") else None,
+                    "recipe_slug": item.get("recipe", {}).get("slug") if item.get("recipe") else None,
+                }
+                for item in result
+            ]
+        except Exception as e:
+            error_msg = f"Error fetching today's mealplan (concise): {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug(
+                {"message": "Error traceback", "traceback": traceback.format_exc()}
+            )
+            raise ToolError(error_msg)
+
+    @mcp.tool()
     def create_mealplan_bulk(
         entries: List[Dict[str, Any]],
     ) -> Dict[str, Any]:

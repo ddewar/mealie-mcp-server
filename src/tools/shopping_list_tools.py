@@ -234,6 +234,86 @@ def register_shopping_list_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
             raise ToolError(error_msg)
 
+    @mcp.tool()
+    def get_shopping_list_concise(list_id: str) -> Dict[str, Any]:
+        """Get a concise view of a specific shopping list — returns the list name and a
+        simplified list of items (note, quantity, checked status) without nested food/unit/label objects.
+
+        Args:
+            list_id: The UUID of the shopping list
+
+        Returns:
+            Dict[str, Any]: Shopping list with id, name, and simplified items.
+        """
+        try:
+            logger.info({"message": "Fetching shopping list (concise)", "list_id": list_id})
+            result = mealie.get_shopping_list(list_id)
+            concise = {
+                "id": result.get("id"),
+                "name": result.get("name"),
+            }
+            items = result.get("listItems", [])
+            concise["items"] = [
+                {
+                    "id": item.get("id"),
+                    "note": item.get("note", ""),
+                    "quantity": item.get("quantity"),
+                    "checked": item.get("checked", False),
+                    "food_name": item.get("food", {}).get("name") if item.get("food") else None,
+                }
+                for item in items
+            ]
+            concise["item_count"] = len(items)
+            return concise
+        except Exception as e:
+            error_msg = f"Error fetching shopping list (concise) '{list_id}': {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
+            raise ToolError(error_msg)
+
+    @mcp.tool()
+    def remove_recipe_from_shopping_list_concise(
+        list_id: str,
+        recipe_slug: Optional[str] = None,
+        recipe_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Remove a recipe's ingredients from a shopping list. Returns a concise confirmation.
+
+        Prefer using recipe_slug over recipe_id.
+
+        Args:
+            list_id: The UUID of the shopping list
+            recipe_slug: Slug of the recipe (e.g. "zesty-chicken-meatballs"). Preferred over recipe_id.
+            recipe_id: UUID of the recipe (optional, use recipe_slug instead when possible)
+
+        Returns:
+            Dict[str, Any]: Concise confirmation with success status.
+        """
+        try:
+            if recipe_slug and not recipe_id:
+                recipe_data = mealie.get_recipe(recipe_slug)
+                recipe_id = recipe_data.get("id")
+
+            if not recipe_id:
+                raise ValueError("Either recipe_slug or recipe_id must be provided")
+
+            logger.info({
+                "message": "Removing recipe from shopping list (concise)",
+                "list_id": list_id,
+                "recipe_id": recipe_id,
+            })
+            mealie.remove_recipe_from_shopping_list(list_id, recipe_id)
+            return {
+                "success": True,
+                "list_id": list_id,
+                "recipe_slug": recipe_slug or "",
+            }
+        except Exception as e:
+            error_msg = f"Error removing recipe from shopping list (concise): {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
+            raise ToolError(error_msg)
+
     # Shopping List Item Operations
 
     @mcp.tool()
@@ -264,6 +344,51 @@ def register_shopping_list_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             )
         except Exception as e:
             error_msg = f"Error fetching shopping list items: {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
+            raise ToolError(error_msg)
+
+    @mcp.tool()
+    def get_shopping_list_items_concise(
+        page: Optional[int] = None,
+        per_page: Optional[int] = None,
+        search: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get shopping list items with only essential fields (note, quantity, checked, food name).
+        Use this instead of get_shopping_list_items to minimize response size.
+
+        Args:
+            page: Page number to retrieve
+            per_page: Number of items per page
+            search: Search term to filter items
+
+        Returns:
+            Dict[str, Any]: Shopping list items with only essential fields and pagination info.
+        """
+        try:
+            logger.info({
+                "message": "Fetching shopping list items (concise)",
+                "page": page,
+                "per_page": per_page,
+                "search": search,
+            })
+            result = mealie.get_shopping_list_items(
+                page=page, per_page=per_page, search=search
+            )
+            if "items" in result:
+                result["items"] = [
+                    {
+                        "id": item.get("id"),
+                        "note": item.get("note", ""),
+                        "quantity": item.get("quantity"),
+                        "checked": item.get("checked", False),
+                        "food_name": item.get("food", {}).get("name") if item.get("food") else None,
+                    }
+                    for item in result["items"]
+                ]
+            return result
+        except Exception as e:
+            error_msg = f"Error fetching shopping list items (concise): {str(e)}"
             logger.error({"message": error_msg})
             logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
             raise ToolError(error_msg)

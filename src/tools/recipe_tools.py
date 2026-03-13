@@ -236,6 +236,44 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             raise ToolError(error_msg)
 
     @mcp.tool()
+    def create_recipe_concise(
+        name: str, ingredients: List[str], instructions: List[str]
+    ) -> Dict[str, Any]:
+        """Create a new recipe. Returns only essential fields (name, slug, id) instead of the
+        full recipe object.
+
+        Args:
+            name: The name of the new recipe to be created.
+            ingredients: A list of ingredients for the recipe include quantities and units.
+            instructions: A list of instructions for preparing the recipe.
+
+        Returns:
+            Dict[str, Any]: Concise recipe summary with name, slug, and id.
+        """
+        try:
+            logger.info({"message": "Creating recipe (concise)", "name": name})
+            slug = mealie.create_recipe(name)
+            recipe_json = mealie.get_recipe(slug)
+            recipe = Recipe.model_validate(recipe_json)
+            recipe.recipeIngredient = [RecipeIngredient(note=i) for i in ingredients]
+            recipe.recipeInstructions = [
+                RecipeInstruction(text=i) for i in instructions
+            ]
+            result = mealie.update_recipe(slug, recipe.model_dump(exclude_none=True))
+            return {
+                "id": result.get("id"),
+                "name": result.get("name"),
+                "slug": result.get("slug"),
+            }
+        except Exception as e:
+            error_msg = f"Error creating recipe (concise) '{name}': {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug(
+                {"message": "Error traceback", "traceback": traceback.format_exc()}
+            )
+            raise ToolError(error_msg)
+
+    @mcp.tool()
     def update_recipe(
         slug: str,
         ingredients: List[str],
@@ -262,6 +300,45 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             return mealie.update_recipe(slug, recipe.model_dump(exclude_none=True))
         except Exception as e:
             error_msg = f"Error updating recipe '{slug}': {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug(
+                {"message": "Error traceback", "traceback": traceback.format_exc()}
+            )
+            raise ToolError(error_msg)
+
+    @mcp.tool()
+    def update_recipe_concise(
+        slug: str,
+        ingredients: List[str],
+        instructions: List[str],
+    ) -> Dict[str, Any]:
+        """Replaces the ingredients and instructions of an existing recipe. Returns only
+        essential fields instead of the full recipe object.
+
+        Args:
+            slug: The unique text identifier for the recipe to be updated.
+            ingredients: A list of ingredients for the recipe include quantities and units.
+            instructions: A list of instructions for preparing the recipe.
+
+        Returns:
+            Dict[str, Any]: Concise confirmation with name, slug, and id.
+        """
+        try:
+            logger.info({"message": "Updating recipe (concise)", "slug": slug})
+            recipe_json = mealie.get_recipe(slug)
+            recipe = Recipe.model_validate(recipe_json)
+            recipe.recipeIngredient = [RecipeIngredient(note=i) for i in ingredients]
+            recipe.recipeInstructions = [
+                RecipeInstruction(text=i) for i in instructions
+            ]
+            result = mealie.update_recipe(slug, recipe.model_dump(exclude_none=True))
+            return {
+                "id": result.get("id"),
+                "name": result.get("name"),
+                "slug": result.get("slug"),
+            }
+        except Exception as e:
+            error_msg = f"Error updating recipe (concise) '{slug}': {str(e)}"
             logger.error({"message": error_msg})
             logger.debug(
                 {"message": "Error traceback", "traceback": traceback.format_exc()}
@@ -312,6 +389,54 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             raise ToolError(error_msg)
 
     @mcp.tool()
+    def patch_recipe_concise(
+        slug: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        recipe_yield: Optional[str] = None,
+        total_time: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Partially update a recipe (only updates provided fields). Returns only essential fields.
+
+        Args:
+            slug: The unique text identifier for the recipe to be updated.
+            name: New name for the recipe (optional)
+            description: New description for the recipe (optional)
+            recipe_yield: New yield/servings for the recipe (optional)
+            total_time: New total time for the recipe (optional)
+
+        Returns:
+            Dict[str, Any]: Concise confirmation with name, slug, and id.
+        """
+        try:
+            logger.info({"message": "Patching recipe (concise)", "slug": slug})
+
+            recipe_data = {}
+            if name is not None:
+                recipe_data["name"] = name
+            if description is not None:
+                recipe_data["description"] = description
+            if recipe_yield is not None:
+                recipe_data["recipeYield"] = recipe_yield
+            if total_time is not None:
+                recipe_data["totalTime"] = total_time
+
+            if not recipe_data:
+                raise ValueError("At least one field must be provided to update")
+
+            result = mealie.patch_recipe(slug, recipe_data)
+            return {
+                "id": result.get("id"),
+                "name": result.get("name"),
+                "slug": result.get("slug"),
+            }
+        except Exception as e:
+            error_msg = f"Error patching recipe (concise) '{slug}': {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
+            raise ToolError(error_msg)
+
+    @mcp.tool()
     def duplicate_recipe(slug: str, name: Optional[str] = None) -> Dict[str, Any]:
         """Duplicate an existing recipe, creating a copy with a new slug.
 
@@ -332,6 +457,31 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             raise ToolError(error_msg)
 
     @mcp.tool()
+    def duplicate_recipe_concise(slug: str, name: Optional[str] = None) -> Dict[str, Any]:
+        """Duplicate an existing recipe. Returns only essential fields of the new copy.
+
+        Args:
+            slug: The unique text identifier for the recipe to duplicate.
+            name: Optional new name for the duplicate.
+
+        Returns:
+            Dict[str, Any]: Concise details of the duplicate with name, slug, and id.
+        """
+        try:
+            logger.info({"message": "Duplicating recipe (concise)", "slug": slug, "name": name})
+            result = mealie.duplicate_recipe(slug, name)
+            return {
+                "id": result.get("id"),
+                "name": result.get("name"),
+                "slug": result.get("slug"),
+            }
+        except Exception as e:
+            error_msg = f"Error duplicating recipe (concise) '{slug}': {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
+            raise ToolError(error_msg)
+
+    @mcp.tool()
     def mark_recipe_last_made(slug: str) -> Dict[str, Any]:
         """Mark a recipe as having been made today (updates last made timestamp).
 
@@ -346,6 +496,29 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             return mealie.update_recipe_last_made(slug)
         except Exception as e:
             error_msg = f"Error updating recipe last made '{slug}': {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
+            raise ToolError(error_msg)
+
+    @mcp.tool()
+    def mark_recipe_last_made_concise(slug: str) -> Dict[str, Any]:
+        """Mark a recipe as having been made today. Returns only a concise confirmation.
+
+        Args:
+            slug: The unique text identifier for the recipe.
+
+        Returns:
+            Dict[str, Any]: Concise confirmation with slug and success status.
+        """
+        try:
+            logger.info({"message": "Marking recipe as last made (concise)", "slug": slug})
+            mealie.update_recipe_last_made(slug)
+            return {
+                "success": True,
+                "slug": slug,
+            }
+        except Exception as e:
+            error_msg = f"Error updating recipe last made (concise) '{slug}': {str(e)}"
             logger.error({"message": error_msg})
             logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
             raise ToolError(error_msg)
