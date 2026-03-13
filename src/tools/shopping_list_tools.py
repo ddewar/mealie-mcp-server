@@ -159,21 +159,34 @@ def register_shopping_list_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
     @mcp.tool()
     def add_recipe_to_shopping_list_concise(
         list_id: str,
-        recipe_id: str,
+        recipe_slug: Optional[str] = None,
+        recipe_id: Optional[str] = None,
         recipe_increment_quantity: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Add a recipe's ingredients to a shopping list. Returns a concise confirmation
         instead of the full shopping list object.
 
+        Prefer using recipe_slug over recipe_id — slugs are human-readable strings like
+        "zesty-chicken-meatballs" from the get_recipes_concise results.
+
         Args:
             list_id: The UUID of the shopping list
-            recipe_id: The UUID of the recipe to add
+            recipe_slug: Slug of the recipe (e.g. "zesty-chicken-meatballs"). Preferred over recipe_id.
+            recipe_id: UUID of the recipe (optional, use recipe_slug instead when possible)
             recipe_increment_quantity: Multiplier for recipe quantities (e.g., 2.0 for double)
 
         Returns:
-            Dict[str, Any]: Concise confirmation with success status, list_id, list_name, and recipe_id.
+            Dict[str, Any]: Concise confirmation with success status, list_id, list_name, and recipe_slug.
         """
         try:
+            # Resolve slug to ID if needed
+            if recipe_slug and not recipe_id:
+                recipe_data = mealie.get_recipe(recipe_slug)
+                recipe_id = recipe_data.get("id")
+
+            if not recipe_id:
+                raise ValueError("Either recipe_slug or recipe_id must be provided")
+
             logger.info({
                 "message": "Adding recipe to shopping list (concise)",
                 "list_id": list_id,
@@ -186,7 +199,7 @@ def register_shopping_list_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
                 "success": True,
                 "list_id": result.get("id", list_id),
                 "list_name": result.get("name", ""),
-                "recipe_id": recipe_id,
+                "recipe_slug": recipe_slug or "",
             }
         except Exception as e:
             error_msg = f"Error adding recipe to shopping list (concise): {str(e)}"

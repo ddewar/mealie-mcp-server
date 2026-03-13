@@ -101,6 +101,7 @@ def register_mealplan_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
     @mcp.tool()
     def create_mealplan_concise(
         date: str,
+        recipe_slug: Optional[str] = None,
         recipe_id: Optional[str] = None,
         title: Optional[str] = None,
         entry_type: str = "breakfast",
@@ -108,9 +109,13 @@ def register_mealplan_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
         """Create a new meal plan entry. Returns a concise response with only essential fields
         instead of the full recipe object.
 
+        Prefer using recipe_slug over recipe_id — slugs are human-readable strings like
+        "zesty-chicken-meatballs" from the get_recipes_concise results.
+
         Args:
             date: Date for the mealplan in ISO format (YYYY-MM-DD)
-            recipe_id: UUID of the recipe to add to the mealplan (optional)
+            recipe_slug: Slug of the recipe (e.g. "zesty-chicken-meatballs"). Preferred over recipe_id.
+            recipe_id: UUID of the recipe (optional, use recipe_slug instead when possible)
             title: Title for the mealplan entry if not using a recipe (optional)
             entry_type: Type of mealplan entry (breakfast, lunch, dinner, side)
 
@@ -118,6 +123,11 @@ def register_mealplan_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             Dict[str, Any]: Concise mealplan entry with id, date, entryType, recipe_name, and recipe_slug.
         """
         try:
+            # Resolve slug to ID if needed
+            if recipe_slug and not recipe_id:
+                recipe_data = mealie.get_recipe(recipe_slug)
+                recipe_id = recipe_data.get("id")
+
             logger.info(
                 {
                     "message": "Creating mealplan entry (concise)",
