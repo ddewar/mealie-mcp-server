@@ -10,6 +10,8 @@ from prompts import register_prompts
 from tools import register_all_tools
 
 # Load environment variables first
+# Try to load from Langflow's env file if running inside container
+load_dotenv("/app/langflow/.langflow.env")
 load_dotenv()
 
 # Get log level from environment variable with INFO as default
