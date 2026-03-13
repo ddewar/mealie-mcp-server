@@ -137,6 +137,73 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             raise ToolError(error_msg)
 
     @mcp.tool()
+    def get_recipes_concise(
+        search: Optional[str] = None,
+        page: Optional[int] = None,
+        per_page: Optional[int] = None,
+        categories: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
+        require_all_tags: Optional[bool] = None,
+        require_all_categories: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Provides a concise paginated list of recipes with optional filtering.
+        Returns only essential fields (id, name, slug, totalTime, rating) per recipe
+        to minimize response size.
+
+        IMPORTANT: When filtering by tags or categories, you MUST use slugs or UUIDs, NOT display names!
+
+        Use get_tags() or get_categories() first to find the correct slugs.
+
+        Args:
+            search: Filters recipes by name or description.
+            page: Page number for pagination.
+            per_page: Number of items per page.
+            categories: Filter by category SLUGS (e.g., ["breakfast", "dinner"]).
+            tags: Filter by tag SLUGS or UUIDs (e.g., ["quick", "healthy"]).
+            require_all_tags: If True, recipe must have ALL specified tags (AND). Default False (OR).
+            require_all_categories: If True, recipe must have ALL specified categories (AND).
+
+        Returns:
+            Dict[str, Any]: Concise recipe summaries with pagination info.
+        """
+        try:
+            logger.info(
+                {
+                    "message": "Fetching recipes (concise)",
+                    "search": search,
+                    "page": page,
+                    "per_page": per_page,
+                }
+            )
+            result = mealie.get_recipes(
+                search=search,
+                page=page,
+                per_page=per_page,
+                categories=categories,
+                tags=tags,
+                require_all_tags=require_all_tags,
+                require_all_categories=require_all_categories,
+            )
+            # Filter each item to essential fields only
+            if "items" in result:
+                result["items"] = [
+                    {
+                        k: item[k]
+                        for k in ("id", "name", "slug", "totalTime", "rating")
+                        if k in item
+                    }
+                    for item in result["items"]
+                ]
+            return result
+        except Exception as e:
+            error_msg = f"Error fetching recipes (concise): {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug(
+                {"message": "Error traceback", "traceback": traceback.format_exc()}
+            )
+            raise ToolError(error_msg)
+
+    @mcp.tool()
     def create_recipe(
         name: str, ingredients: List[str], instructions: List[str]
     ) -> Dict[str, Any]:

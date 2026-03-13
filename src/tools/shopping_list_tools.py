@@ -39,6 +39,36 @@ def register_shopping_list_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             raise ToolError(error_msg)
 
     @mcp.tool()
+    def get_shopping_lists_concise(
+        page: Optional[int] = None,
+        per_page: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Get a concise list of shopping lists (id and name only).
+        Use this instead of get_shopping_lists when you only need to find a list's ID.
+
+        Args:
+            page: Page number to retrieve
+            per_page: Number of items per page
+
+        Returns:
+            Dict[str, Any]: Shopping lists with only id and name fields.
+        """
+        try:
+            logger.info({"message": "Fetching shopping lists (concise)", "page": page, "per_page": per_page})
+            result = mealie.get_shopping_lists(page=page, per_page=per_page)
+            if "items" in result:
+                result["items"] = [
+                    {k: item[k] for k in ("id", "name") if k in item}
+                    for item in result["items"]
+                ]
+            return result
+        except Exception as e:
+            error_msg = f"Error fetching shopping lists (concise): {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
+            raise ToolError(error_msg)
+
+    @mcp.tool()
     def create_shopping_list(name: str) -> Dict[str, Any]:
         """Create a new shopping list.
 
@@ -122,6 +152,44 @@ def register_shopping_list_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             )
         except Exception as e:
             error_msg = f"Error adding recipe to shopping list: {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
+            raise ToolError(error_msg)
+
+    @mcp.tool()
+    def add_recipe_to_shopping_list_concise(
+        list_id: str,
+        recipe_id: str,
+        recipe_increment_quantity: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Add a recipe's ingredients to a shopping list. Returns a concise confirmation
+        instead of the full shopping list object.
+
+        Args:
+            list_id: The UUID of the shopping list
+            recipe_id: The UUID of the recipe to add
+            recipe_increment_quantity: Multiplier for recipe quantities (e.g., 2.0 for double)
+
+        Returns:
+            Dict[str, Any]: Concise confirmation with success status, list_id, list_name, and recipe_id.
+        """
+        try:
+            logger.info({
+                "message": "Adding recipe to shopping list (concise)",
+                "list_id": list_id,
+                "recipe_id": recipe_id,
+            })
+            result = mealie.add_recipe_to_shopping_list(
+                list_id, recipe_id, recipe_increment_quantity
+            )
+            return {
+                "success": True,
+                "list_id": result.get("id", list_id),
+                "list_name": result.get("name", ""),
+                "recipe_id": recipe_id,
+            }
+        except Exception as e:
+            error_msg = f"Error adding recipe to shopping list (concise): {str(e)}"
             logger.error({"message": error_msg})
             logger.debug({"message": "Error traceback", "traceback": traceback.format_exc()})
             raise ToolError(error_msg)

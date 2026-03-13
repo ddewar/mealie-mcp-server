@@ -99,6 +99,60 @@ def register_mealplan_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             raise ToolError(error_msg)
 
     @mcp.tool()
+    def create_mealplan_concise(
+        date: str,
+        recipe_id: Optional[str] = None,
+        title: Optional[str] = None,
+        entry_type: str = "breakfast",
+    ) -> Dict[str, Any]:
+        """Create a new meal plan entry. Returns a concise response with only essential fields
+        instead of the full recipe object.
+
+        Args:
+            date: Date for the mealplan in ISO format (YYYY-MM-DD)
+            recipe_id: UUID of the recipe to add to the mealplan (optional)
+            title: Title for the mealplan entry if not using a recipe (optional)
+            entry_type: Type of mealplan entry (breakfast, lunch, dinner, side)
+
+        Returns:
+            Dict[str, Any]: Concise mealplan entry with id, date, entryType, recipe_name, and recipe_slug.
+        """
+        try:
+            logger.info(
+                {
+                    "message": "Creating mealplan entry (concise)",
+                    "date": date,
+                    "recipe_id": recipe_id,
+                    "title": title,
+                    "entry_type": entry_type,
+                }
+            )
+            result = mealie.create_mealplan(
+                date=date,
+                recipe_id=recipe_id,
+                title=title,
+                entry_type=entry_type,
+            )
+            concise = {
+                "id": result.get("id"),
+                "date": result.get("date"),
+                "entryType": result.get("entryType"),
+                "title": result.get("title"),
+            }
+            recipe = result.get("recipe")
+            if recipe:
+                concise["recipe_name"] = recipe.get("name")
+                concise["recipe_slug"] = recipe.get("slug")
+            return concise
+        except Exception as e:
+            error_msg = f"Error creating mealplan entry (concise): {str(e)}"
+            logger.error({"message": error_msg})
+            logger.debug(
+                {"message": "Error traceback", "traceback": traceback.format_exc()}
+            )
+            raise ToolError(error_msg)
+
+    @mcp.tool()
     def create_mealplan_bulk(
         entries: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
