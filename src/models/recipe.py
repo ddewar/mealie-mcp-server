@@ -77,36 +77,42 @@ class RecipeSettings(BaseModel):
     locked: bool = False
 
 
+class RecipeTag(BaseModel):
+    id: Optional[str] = None
+    name: Optional[str] = None
+    slug: Optional[str] = None
+
+
 class Recipe(BaseModel):
     id: str
-    userId: str
-    householdId: str
-    groupId: str
+    userId: Optional[str] = None
+    householdId: Optional[str] = None
+    groupId: Optional[str] = None
     name: str
     slug: str
     image: Optional[str] = None
     recipeServings: Optional[int] = None
     recipeYieldQuantity: Optional[int] = 0
     recipeYield: Optional[str] = None
-    totalTime: Optional[int] = None
-    prepTime: Optional[int] = None
-    cookTime: Optional[int] = None
-    performTime: Optional[int] = None
+    totalTime: Optional[str] = None
+    prepTime: Optional[str] = None
+    cookTime: Optional[str] = None
+    performTime: Optional[str] = None
     description: Optional[str] = None
-    recipeCategory: List[str] = Field(default_factory=list)
-    tags: List[str] = Field(default_factory=list)
-    tools: List[str] = Field(default_factory=list)
+    recipeCategory: List[Any] = Field(default_factory=list)
+    tags: List[Any] = Field(default_factory=list)
+    tools: List[Any] = Field(default_factory=list)
     rating: Optional[float] = None
     orgURL: Optional[str] = None
-    dateAdded: str
-    dateUpdated: str
-    createdAt: str
-    updatedAt: str
+    dateAdded: Optional[str] = None
+    dateUpdated: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
     lastMade: Optional[str] = None
     recipeIngredient: List[RecipeIngredient] = Field(default_factory=list)
     recipeInstructions: List[RecipeInstruction] = Field(default_factory=list)
-    nutrition: RecipeNutrition = Field(default_factory=RecipeNutrition)
-    settings: RecipeSettings = Field(default_factory=RecipeSettings)
+    nutrition: Optional[RecipeNutrition] = Field(default_factory=RecipeNutrition)
+    settings: Optional[RecipeSettings] = Field(default_factory=RecipeSettings)
     assets: List[Any] = Field(default_factory=list)
     notes: List[Any] = Field(default_factory=list)
     extras: Dict[str, Any] = Field(default_factory=dict)
